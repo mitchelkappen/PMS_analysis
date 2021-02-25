@@ -1,0 +1,391 @@
+#############################
+#                           #
+##  PreProcessing PMS data ##
+#############################
+rm(list = ls()) # Clear environment
+cat("\014") # Clear console
+dev.off() # Clear plot window
+
+##################
+
+library(dplyr)
+
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))# Set working directory to current directory
+
+dataDir = "Z:/ghepmk_data/2020_Kappen_PMS/"
+
+DataFrame <- as.data.frame(read.csv(file = paste0(dataDir,'Screening/results-survey987313-25022021.csv')))# Read data CSV # update to current date version
+
+DataFrame <- select(DataFrame, -c(lastpage, startlanguage, startdate, datestamp, IFC1, IFC2, IFC3, IFC4, IFC5, IFC6, auto1.SQ001., AgeValidation.SQ001., AgeValidation.SQ002., interviewtime, groupTime17, IFC1Time, IFC2Time, IFC3Time, IFC4Time, IFC5Time, IFC6Time, auto1Time, groupTime13, GenderTime, AgeTime, MenstruationTime, FirstMenstrualTime, RegularMentrualTime, MenopauseTime, PregnantTime, PostPregnantTime, ContraceptiveTime, DutchTime, HormonesTime, MentalTime, LaptopTime, MenstrualToelichtTime, CurrentMensesTime, MenstrualStartTime, MenstrualEndTime, MenstrualEndExpectedTime, MenstrualDurationTime, AgeValidationTime, EMailTime, groupTime16, SymptomsTime, DisturbanceTime, SymptomsPRETime, groupTime14, RRSTime, groupTime15, DASS21Time )) #Remove columns with irrelevant data
+
+
+### Clean data --> remove all rows without submitdate, since that means they didnt complete the screening
+DataFrame <- DataFrame[!(is.na(DataFrame$submitdate) | DataFrame$submitdate==""), ]
+
+substrRight <- function(x, n){ # A function that takes the last n characters of a string
+  substr(x, nchar(x)-n+1, nchar(x))}
+
+### DataFrameClean --> initialise dataframe for all relevant data
+
+DataFrameClean <- data.frame()
+DataFrameClean <- select(DataFrame, c(ï..id, Age))
+
+### Get total score per questionnaire
+#Symptoms.PST 1-14
+#Disturbance.PST A-E? 1-5
+#RRS.R 1-22
+#DASS21.DAS 1-21
+
+########################## Symptoms ###########################
+SymptomsData <- DataFrame[ , grepl( "Symptoms.PST" , names( DataFrame ) ) ] # Make dataset with only Symtoms variables
+SymptomsData <- cbind(SymptomsData, Symptoms.PST04=c(DataFrame$Symptoms.SPST04))
+
+
+SymptomsData <- SymptomsData[,c(1,2,3,14,4,5,6,7,8,9,10,11,12,13)]
+
+allSymptoms = 0
+
+for(i in 1:nrow(DataFrame)) { # loop through participants
+  SymptomsScore <- 0
+  for(t in 1:ncol(SymptomsData)){ # loop through questions
+    temp = as.numeric(substrRight(unlist(SymptomsData[t])[i],1)) # Take value i (participant) from SymptomsDATA, unlist, then take last character and turn it into a number (double)
+    SymptomsScore <- SymptomsScore + temp
+  }
+  allSymptoms[i] <- SymptomsScore
+}
+# print(allSymptoms) # allSymptoms consists of all total Symptoms scores per participant
+
+DataFrameClean <- cbind(DataFrameClean, allSymptoms)
+
+
+########################## Disturbance ###########################
+DisturbanceData <- DataFrame[ , grepl( "Disturbance.PST" , names( DataFrame ) ) ] # Make dataset with only Disturbance variables
+allDisturbance = 0
+
+for(i in 1:nrow(DataFrame)) { # loop through participants
+  DisturbanceScore <- 0
+  for(t in 1:ncol(DisturbanceData)){ # loop through questions
+    temp = as.numeric(substrRight(unlist(DisturbanceData[t])[i],1)) # Take value i (participant) from DisturbanceDATA, unlist, then take last character and turn it into a number (double)
+    DisturbanceScore <- DisturbanceScore + temp
+  }
+  allDisturbance[i] <- DisturbanceScore
+}
+# print(allDisturbance) # allDisturbance consists of all total Disturbance scores per participant
+
+DataFrameClean <- cbind(DataFrameClean, allDisturbance)
+
+########################## RRS ###########################
+RRSData <- DataFrame[ , grepl( "RRS.R" , names( DataFrame ) ) ] # Make dataset with only RRS variables
+allRRS = 0
+
+for(i in 1:nrow(DataFrame)) { # loop through participants
+  RRSScore <- 0
+  for(t in 1:ncol(RRSData)){ # loop through questions
+    temp = as.numeric(substrRight(unlist(RRSData[t])[i],1)) # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double)
+    RRSScore <- RRSScore + temp
+  }
+  allRRS[i] <- RRSScore
+}
+# print(allRRS) # allRRS consists of all total RSS scores per participant
+
+DataFrameClean <- cbind(DataFrameClean, allRRS)
+
+########################## DASS ###########################
+DASSData <- DataFrame[ , grepl( "DASS21.DAS" , names( DataFrame ) ) ] # Make dataset with only DASS variables
+allDASS = 0
+
+for(i in 1:nrow(DataFrame)) { # loop through participants
+  DASSScore <- 0
+  for(t in 1:ncol(DASSData)){ # loop through questions
+    temp = as.numeric(substrRight(unlist(DASSData[t])[i],1)) # Take value i (participant) from DisturbanceDATA, unlist, then take last character and turn it into a number (double)
+    DASSScore <- DASSScore + temp
+  }
+  allDASS[i] <- DASSScore
+}
+# print(allDASS) # allDASS consists of all total DASS scores per participant
+
+DataFrameClean <- cbind(DataFrameClean, allDASS)
+
+####### Distinguish patients from non-patients based on questionnaire scores #######
+
+SymptomsDataNums <- data.frame(matrix(ncol = ncol(SymptomsData), nrow = nrow(SymptomsData))) #Make empty dataframe to put in 'raw' symptomscores (e.g. 3 instead of L403)
+colnames(SymptomsDataNums) <- colnames(SymptomsData)  #Give this new dataframe the same colnames as the original Symptomsdata dataframe
+
+# Make better DataFrame
+for (b in 1:ncol(SymptomsData)){   #loop over all columns (b refers to 'width' = 'breedte' = amount of columns)
+  for (h in 1:nrow(SymptomsData)){   #within each column, loop over all rows = participants (h refers to height = amount of rows)
+    SymptomsDataNums[h,b] <- as.numeric(substrRight(unlist(SymptomsData[h,b]),1)) # in each cell, fill in the last digit (e.g. 3) of the corresponding cell in SymptomsData (e.g. L403)
+  }
+}
+
+#same logic as with SymptomsDataNums
+DisturbanceDataNums <- data.frame(matrix(ncol = ncol(DisturbanceData), nrow = nrow(DisturbanceData)))
+colnames(DisturbanceDataNums) <- colnames(DisturbanceData)
+
+for (b in 1:ncol(DisturbanceData)){
+  for (h in 1:nrow(DisturbanceData)){
+    DisturbanceDataNums[h,b] <- as.numeric(substrRight(unlist(DisturbanceData[h,b]),1))
+  }
+}
+
+
+PMSScore <- 0 #initialize variable
+
+for (i in 1:nrow(DataFrame)){ #loop over all participants
+  req1 = 0 #initialize variables
+  req2 = 0
+  req3 = 0
+  # Requirement 1
+  if (sum(SymptomsDataNums[i,1:4] == 4)>0){ #if there's one or more values within the first four columns(=questions) of SymptomsDataNums that are equal to 4
+    req1 = 2  #then requirement 1 gets value 2
+  } else if (sum(SymptomsDataNums[i,1:4] == 3)>0){ #if there's one or more values within the first four columns of SymptomsDataNums that are equal to 3
+    req1 = 1 #then requirement 1 gets value 1
+  } else { #if there's no values within the first four columns that are equal to 3 or more
+    req1 = 0 #then requirement 1 gets value zero
+  }
+  
+  # Requirement 2
+  if (sum(SymptomsDataNums[i,] >= 3) >= 5){ #if there are 5 or more values in SymptomsDataNums that are equal to three or more
+    req2 = 2 #then requirement 2 gets value 2
+  } else { #if not,
+    req2 = 0 #requirement 2 gets value 0
+  }
+  
+  # Requirement 3
+  if (sum(DisturbanceDataNums[i,] == 4)>0){ #if there's one or more values within the five columns(=questions) of DisturbanceDataNums that are equal to 4
+    req3 = 2 #then requirement 3 gets value 2
+  } else if (sum(DisturbanceDataNums[i,] >= 3)>0){ #if there's one or more values within the first four columns of DisturbanceDataNums that are equal to 3
+    req3 = 1 #then requirement 3 gets value 1 
+  } else { #if there's not one value within these five columns that is equal to 3 or more
+    req3 = 0 #then requirement 3 gets value 0
+  }
+  
+  #Give each participant a PMSScore
+  if (req1 == 2 && req2 == 2 && req3 == 2){ #if the value of req 1 =2, req 2 = 2 and req 3 = 2
+    PMSScore[i] <- 2 #then that participant gets PMSScore 2 --> PMDD
+  } else if (req1 == 0 | req2 == 0 | req3 == 0){ #if the value of one of the requirements is equal to 0
+    PMSScore[i] <- 0 #then that participant gets PMSScore 0 --> no PMS
+  } else { #in all other cases...
+    PMSScore[i] <- 1 #...the participant gets PMSScore 1 --> PMS
+  }
+}
+
+
+PMSData <- cbind(PMSScore, DataFrame) #Add columns with PMSScore to DataFrame
+
+DataFrameClean <- cbind(DataFrameClean, PMSScore)
+
+########################### VISUALIZATION ###########################
+
+
+### visualization ingredients
+
+library(ggplot2)
+
+
+## AGE
+
+barplot(table(PMSData$Age), col = 'orange', main = 'Age', ylab = 'frequency', )
+
+# ggplot(data=PMSData, aes(x=Age)) +
+#   geom_bar(stat="count", color="black", fill = "steelblue",)
+
+## CONTRACEPTION
+#make dataset with info about contraception
+ContraData <- data.frame(PMSData$Contraceptive.SQ001., PMSData$Contraceptive.SQ002., PMSData$Contraceptive.SQ003., PMSData$Contraceptive.SQ004., PMSData$Contraceptive.other.) #make dataframe with 'contraceptive' columns only
+names(ContraData) <- c("pill", "hor. coil", "cop. coil", "natural", "other") #give new names to these columns
+
+ContraData$Overview[ContraData$`pill` == 'Y'] = 'Pill'
+ContraData$Overview[ContraData$`hor. coil` == 'Y'] = 'Hor. Coil'
+ContraData$Overview[ContraData$`cop. coil` == 'Y'] = 'Cop. Coil'
+ContraData$Overview[ContraData$`natural` == 'Y'] = 'Natural'
+ContraData$Overview[ContraData$other != ''] = 'other'
+ContraData$Overview <- as.factor(ContraData$Overview)
+
+Contraception <- ContraData$Overview
+DataFrameClean <- cbind(DataFrameClean, Contraception)
+
+# barplot(table(ContraData$Overview), col = 'red', main = 'Contraception Type', ylab = 'frequency') #as aanpassen
+
+ggplot(data=ContraData, aes(x=Overview)) +
+  geom_bar(stat="count", color = "black", fill = "orangered3") +
+  xlab("Contraception Type")
+
+## PMS
+
+ggplot(data=PMSData, aes(x=PMSScore)) +
+  geom_bar(stat="count", color = "black", fill = "green4") +
+  xlab("PMSScore") 
+
+## QUESTIONNAIRES
+
+#Symptoms.PST + Disturbance.PST + RRS.R + DASS21.DAS
+
+SymptomsDF <- as.data.frame(allSymptoms)
+DisturbanceDF <- as.data.frame(allDisturbance)
+RRSDF <- as.data.frame(allRRS)
+DASSDF <- as.data.frame(allDASS)
+
+library("yarrr")
+
+plotVariable <- (numeric(nrow(SymptomsDF))+1)
+
+SymptomsPlot <- pirateplot(formula = allSymptoms ~ plotVariable,
+                           data = SymptomsDF,
+                           theme = 3,
+                           main = "Symptoms")
+
+DisturbancePlot <- pirateplot(formula = allDisturbance ~ plotVariable,
+                           data = DisturbanceDF,
+                           theme = 3,
+                           main = "Disturbance")
+
+RRSPlot <- pirateplot(formula = allRRS ~ plotVariable,
+                           data = RRSDF,
+                           theme = 3,
+                           main = "RRS")
+
+DASSPlot <- pirateplot(formula = allDASS ~ plotVariable,
+                           data = DASSDF,
+                           theme = 3,
+                           main = "DASS")
+
+################ Linking Excel file to assess A-B/B-A distribution #################
+ExcelPMS <- read.csv(file = "../Data/excelPMS(Screening4).csv", head = TRUE, sep=";") # 
+library(dplyr)
+Randomisatie <- select(ExcelPMS, Entry.nummer, Randomisatie) 
+
+DataFrame$testVolgorde = ''
+for (i in 1:nrow(DataFrame)){
+  loc = which(Randomisatie$Entry.nummer == DataFrame$ï..id[i])
+  DataFrame$testVolgorde[i] = Randomisatie$Randomisatie[loc]
+}
+
+#dataframe maken
+#eerst dataframe aanmaken met juiste dimensies en namen geven aan rijen en kolommen
+#Dan 1 voor 1 de juiste som aan de juiste cel koppelen
+
+### check where sums go wrong
+#DataFrame <- cbind(DataFrame, PMSData$PMSScore)
+#library(dplyr)
+#SubsetAB1 <- DataFrame[which(DataFrame$`PMSData$PMSScore` == 1 & DataFrame$testVolgorde == "A-B"), ]
+#SubsetBA2 <- DataFrame[which(DataFrame$`PMSData$PMSScore` == 2 & DataFrame$testVolgorde == "B-A"), ]
+
+Order <- DataFrame$testVolgorde
+DataFrameClean <- cbind(DataFrameClean, Order)
+
+DataFrameClean$Contraception[DataFrameClean$ï..id == 537] = 'other'
+DataFrameClean$Contraception[DataFrameClean$ï..id == 466] = 'other'
+
+
+ABData <- data.frame(matrix(ncol = 6, nrow = 3))
+x <- c("Pill", "Hor. coil", "Cop.coil", "Natural", "Other", "RowTotal")
+y <- c("No PMS", "PMS", "ColTotal")
+colnames(ABData) <- x
+rownames(ABData) <- y
+
+ABData[1,1] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Pill'] == "A-B")
+ABData[1,2] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Hor. Coil'] == "A-B")
+ABData[1,3] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Cop. Coil'] == "A-B")
+ABData[1,4] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Natural'] == "A-B")
+ABData[1,5] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'other'] == "A-B")
+ABData[1,6] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0] == "A-B")
+
+
+ABData[2,1] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Pill'] == "A-B")
+ABData[2,2] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Hor. Coil'] == "A-B")
+ABData[2,3] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Cop. Coil'] == "A-B")
+ABData[2,4] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Natural'] == "A-B")
+ABData[2,5] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'other'] == "A-B")
+ABData[2,6] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0] == "A-B")
+
+
+
+ABData[3,1] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Pill'] == "A-B")
+ABData[3,2] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Hor. Coil'] == "A-B")
+ABData[3,3] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Cop. Coil'] == "A-B")
+ABData[3,4] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Natural'] == "A-B")
+ABData[3,5] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'other'] == "A-B")
+ABData[3,6] <- sum(DataFrameClean$Order == "A-B")
+
+
+
+
+BAData <- data.frame(matrix(ncol = 6, nrow = 3))
+x1 <- c("Pill", "Hor. coil", "Cop.coil", "Natural", "Other", "RowTotal")
+y1 <- c("No PMS", "PMS", "ColTotal")
+colnames(BAData) <- x1
+rownames(BAData) <- y1
+
+
+BAData[1,1] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Pill'] == "B-A")
+BAData[1,2] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Hor. Coil'] == "B-A")
+BAData[1,3] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Cop. Coil'] == "B-A")
+BAData[1,4] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'Natural'] == "B-A")
+BAData[1,5] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0 & DataFrameClean$Contraception == 'other'] == "B-A")
+BAData[1,6] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore == 0] == "B-A")
+
+
+BAData[2,1] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Pill'] == "B-A")
+BAData[2,2] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Hor. Coil'] == "B-A")
+BAData[2,3] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Cop. Coil'] == "B-A")
+BAData[2,4] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'Natural'] == "B-A")
+BAData[2,5] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0 & DataFrameClean$Contraception == 'other'] == "B-A")
+BAData[2,6] <- sum(DataFrameClean$Order[DataFrameClean$PMSScore != 0] == "B-A")
+
+
+
+BAData[3,1] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Pill'] == "B-A")
+BAData[3,2] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Hor. Coil'] == "B-A")
+BAData[3,3] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Cop. Coil'] == "B-A")
+BAData[3,4] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Natural'] == "B-A")
+BAData[3,5] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'other'] == "B-A")
+BAData[3,6] <- sum(DataFrameClean$Order == "B-A")
+
+
+######################## CHECK ASSUMPTION OF NORMALITY ########################
+#p-value smaller than 0.05: normality assumption not met
+
+#normality test(PMSData$Age)
+if (shapiro.test(PMSData$Age)$p.value < .05){
+  print('Assumption of normality of Age is violated')
+}else{
+  print(paste("Age is normally distributed with p being", round((shapiro.test(allSymptoms)$p.value),digits=2)))
+}
+
+#normality test(PMSData$PMSScore)
+if (shapiro.test(PMSData$PMSScore)$p.value < .05){
+  print('Assumption of normality of PMSScore is violated')
+}else{
+  print(paste("PMSScore is normally distributed with p being", round((shapiro.test(PMSData$PMSScore)$p.value),digits=2)))
+}
+
+#normality test(allSymptoms)
+if (shapiro.test(allSymptoms)$p.value < .05){
+  print('Assumption of normality of allSymptoms is violated')
+}else{
+  print(paste("allSymptoms is normally distributed with p being", round((shapiro.test(allSymptoms)$p.value),digits=2)))
+}
+
+#normality test(allDisturbance)
+if (shapiro.test(allDisturbance)$p.value < .05){
+  print('Assumption of normality of allDisturbance is violated')
+}else{
+  print(paste("allDisturbance is normally distributed with p being", round((shapiro.test(allDisturbance)$p.value),digits=2)))
+}
+
+#normality test(allRRS)
+if (shapiro.test(allRRS)$p.value < .05){
+  print('Assumption of normality of allRRS is violated')
+}else{
+  print(paste("allRRS is normally distributed with p being", round((shapiro.test(allRRS)$p.value),digits=2)))
+}
+
+#normality test(allDASS)
+if (shapiro.test(allDASS)$p.value < .05){
+  print('Assumption of normality of allDASS is violated')
+}else{
+  print(paste("allDASS is normally distributed with p being", round((shapiro.test(allDASS)$p.value),digits=2)))
+}
+
+
