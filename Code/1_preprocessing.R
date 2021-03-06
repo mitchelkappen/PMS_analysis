@@ -6,15 +6,19 @@ rm(list = ls()) # Clear environment
 cat("\014") # Clear console
 dev.off() # Clear plot window
 
-##################
+########################## Declare workspace and load data ###########################
 
 library(dplyr)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))# Set working directory to current directory
 
-dataDir = "Z:/ghepmk_data/2020_Kappen_PMS/"
+dataDir = "Z:/ghepmk_data/2020_Kappen_PMS//"
+dateDir = "02032021//"
 
-DataFrame <- as.data.frame(read.csv(file = paste0(dataDir,'Screening/results-survey987313-25022021.csv')))# Read data CSV # update to current date version
+# DataFrame <- as.data.frame(read.csv(file = paste0(dataDir,'Screening/results-survey987313-25022021.csv')))# Read data CSV # update to current date version
+# DataFrame <- as.data.frame(read.csv(file = "Z:/ghepmk_data/2020_Kappen_PMS/Screening/results-survey987313-25022021"))
+
+DataFrame <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey987313.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
 DataFrame <- select(DataFrame, -c(lastpage, startlanguage, startdate, datestamp, IFC1, IFC2, IFC3, IFC4, IFC5, IFC6, auto1.SQ001., AgeValidation.SQ001., AgeValidation.SQ002., interviewtime, groupTime17, IFC1Time, IFC2Time, IFC3Time, IFC4Time, IFC5Time, IFC6Time, auto1Time, groupTime13, GenderTime, AgeTime, MenstruationTime, FirstMenstrualTime, RegularMentrualTime, MenopauseTime, PregnantTime, PostPregnantTime, ContraceptiveTime, DutchTime, HormonesTime, MentalTime, LaptopTime, MenstrualToelichtTime, CurrentMensesTime, MenstrualStartTime, MenstrualEndTime, MenstrualEndExpectedTime, MenstrualDurationTime, AgeValidationTime, EMailTime, groupTime16, SymptomsTime, DisturbanceTime, SymptomsPRETime, groupTime14, RRSTime, groupTime15, DASS21Time )) #Remove columns with irrelevant data
 
@@ -35,6 +39,28 @@ DataFrameClean <- select(DataFrame, c(ï..id, Age))
 #Disturbance.PST A-E? 1-5
 #RRS.R 1-22
 #DASS21.DAS 1-21
+################ Linking Excel file to assess A-B/B-A distribution #################
+ExcelPMS <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"Participant-Excel.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
+
+library(dplyr)
+Randomisatie <- select(ExcelPMS, Entry.nummer, ï..Participantnummer, Randomisatie)
+
+DataFrame$testVolgorde = ''
+DataFrame$participantID = ''
+for (i in 1:nrow(DataFrame)){ # Loop over all participant rows that filled out screening completely
+  loc = which(Randomisatie$Entry.nummer == DataFrame$ï..id[i]) # Check for location of their entry number in the participant Excel file
+  if (length(loc) == 0) {
+    print(paste0("Something going on with participant ",toString(DataFrame$ï..id[i])," AKA entrynumber " ))
+  } else {
+    DataFrame$testVolgorde[i] = Randomisatie$Randomisatie[loc] # Use this location to grab their randomisation and participantNumber allocated
+    DataFrame$participantID[i] = Randomisatie$ï..Participantnummer[loc]
+  }
+}
+
+# Add to Clean Dataframe
+Order <- DataFrame$testVolgorde
+participantNo <- DataFrame$participantID
+DataFrameClean <- cbind(DataFrameClean, participantNo, Order)
 
 ########################## Symptoms ###########################
 SymptomsData <- DataFrame[ , grepl( "Symptoms.PST" , names( DataFrame ) ) ] # Make dataset with only Symtoms variables
@@ -91,20 +117,32 @@ for(i in 1:nrow(DataFrame)) { # loop through participants
 DataFrameClean <- cbind(DataFrameClean, allRRS)
 
 ########################## DASS ###########################
-DASSData <- DataFrame[ , grepl( "DASS21.DAS" , names( DataFrame ) ) ] # Make dataset with only DASS variables
-allDASS = 0
+DASSData <- data.frame(DASS.Total = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), DASS.Stress = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), DASS.Anxiety = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), DASS.Depresh = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
+DASSDataframe <- DataFrame[ , grepl( "DASS21.DAS" , names( DataFrame ) ) ] # Make dataset with only DASS variables
 
 for(i in 1:nrow(DataFrame)) { # loop through participants
   DASSScore <- 0
-  for(t in 1:ncol(DASSData)){ # loop through questions
-    temp = as.numeric(substrRight(unlist(DASSData[t])[i],1)) # Take value i (participant) from DisturbanceDATA, unlist, then take last character and turn it into a number (double)
+  DASSStress <- 0
+  DASSAnxiety <- 0
+  DASSDepresh <- 0
+  for(t in 1:ncol(DASSDataframe)){ # loop through questions
+    temp = as.numeric(substrRight(unlist(DASSDataframe[t])[i],1)) # Take value i (participant) from DisturbanceDATA, unlist, then take last character and turn it into a number (double)
     DASSScore <- DASSScore + temp
+    if (t == 1 | t == 6 | t == 8 | t == 11 | t == 12 | t == 14 | t == 18){
+      DASSStress <- DASSStress + temp
+    } else if (t == 2 | t == 4 | t == 7 | t == 9 | t == 15 | t == 19 | t == 20) {
+      DASSAnxiety <- DASSAnxiety + temp
+    } else if (t == 3 | t == 5 | t == 10 | t == 13 | t == 16 | t == 17 | t == 21){
+      DASSDepresh <- DASSDepresh + temp
+    }
   }
-  allDASS[i] <- DASSScore
+  DASSData$DASS.Total[i] <- DASSScore
+  DASSData$DASS.Stress[i] <- DASSStress
+  DASSData$DASS.Anxiety[i] <- DASSAnxiety
+  DASSData$DASS.Depresh[i] <- DASSDepresh
 }
-# print(allDASS) # allDASS consists of all total DASS scores per participant
 
-DataFrameClean <- cbind(DataFrameClean, allDASS)
+DataFrameClean <- cbind(DataFrameClean, DASSData)
 
 ####### Distinguish patients from non-patients based on questionnaire scores #######
 
@@ -224,7 +262,7 @@ ggplot(data=PMSData, aes(x=PMSScore)) +
 SymptomsDF <- as.data.frame(allSymptoms)
 DisturbanceDF <- as.data.frame(allDisturbance)
 RRSDF <- as.data.frame(allRRS)
-DASSDF <- as.data.frame(allDASS)
+DASSDF <- as.data.frame(DASSData$DASS.Total)
 
 library("yarrr")
 
@@ -245,21 +283,10 @@ RRSPlot <- pirateplot(formula = allRRS ~ plotVariable,
                            theme = 3,
                            main = "RRS")
 
-DASSPlot <- pirateplot(formula = allDASS ~ plotVariable,
+DASSPlot <- pirateplot(formula = DASSData$DASS.Total ~ plotVariable,
                            data = DASSDF,
                            theme = 3,
                            main = "DASS")
-
-################ Linking Excel file to assess A-B/B-A distribution #################
-ExcelPMS <- read.csv(file = "../Data/excelPMS(Screening4).csv", head = TRUE, sep=";") # 
-library(dplyr)
-Randomisatie <- select(ExcelPMS, Entry.nummer, Randomisatie) 
-
-DataFrame$testVolgorde = ''
-for (i in 1:nrow(DataFrame)){
-  loc = which(Randomisatie$Entry.nummer == DataFrame$ï..id[i])
-  DataFrame$testVolgorde[i] = Randomisatie$Randomisatie[loc]
-}
 
 #dataframe maken
 #eerst dataframe aanmaken met juiste dimensies en namen geven aan rijen en kolommen
@@ -270,9 +297,6 @@ for (i in 1:nrow(DataFrame)){
 #library(dplyr)
 #SubsetAB1 <- DataFrame[which(DataFrame$`PMSData$PMSScore` == 1 & DataFrame$testVolgorde == "A-B"), ]
 #SubsetBA2 <- DataFrame[which(DataFrame$`PMSData$PMSScore` == 2 & DataFrame$testVolgorde == "B-A"), ]
-
-Order <- DataFrame$testVolgorde
-DataFrameClean <- cbind(DataFrameClean, Order)
 
 DataFrameClean$Contraception[DataFrameClean$ï..id == 537] = 'other'
 DataFrameClean$Contraception[DataFrameClean$ï..id == 466] = 'other'
@@ -342,50 +366,139 @@ BAData[3,4] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'Natural
 BAData[3,5] <- sum(DataFrameClean$Order[DataFrameClean$Contraception == 'other'] == "B-A")
 BAData[3,6] <- sum(DataFrameClean$Order == "B-A")
 
+########################### Get testmoment specific data ###########################
+# loop over DataFrameClean
+# 
+# For trial specific answers:
+# Check if directory exists for that participantnnumber for each time. 
+# Check if driectory 2 exists
+# 
+# For general questionnaire data
+# Export data csv's
+# - Read CSVs'
+# 
+# do if statement on testingOrder column
+# Read out data
+# Make function to generate PSS score
+# Make function to generate BSRI score
 
-######################## CHECK ASSUMPTION OF NORMALITY ########################
-#p-value smaller than 0.05: normality assumption not met
+dataMoment1 <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey10001.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
+dataMoment2 <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey10001.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
-#normality test(PMSData$Age)
-if (shapiro.test(PMSData$Age)$p.value < .05){
-  print('Assumption of normality of Age is violated')
-}else{
-  print(paste("Age is normally distributed with p being", round((shapiro.test(allSymptoms)$p.value),digits=2)))
+# Clean up data for faulty entries
+dataMoment1 <- dataMoment1[!(dataMoment1$lastpage < 3 | is.na(dataMoment1$lastpage)), ]
+dataMoment2 <- dataMoment2[!(dataMoment2$lastpage < 3 | is.na(dataMoment2$lastpage)), ]
+rownames(dataMoment1) <- NULL
+rownames(dataMoment2) <- NULL
+
+# Make functions to extract questionnaire scores from the data
+### PSS ###
+getPSS <- function(data) {
+  tempData <- data[ , grepl("PSS.P", names(data))] # Make dataset with only RRS variables
+  allPSS = 0
+  
+  for(i in 1:nrow(data)) { # loop through participants
+    PSSScore <- 0
+    for(t in 1:ncol(tempData)){ # loop through questions
+      temp = as.numeric(substrRight(unlist(tempData[t])[i],1)) # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double)
+      PSSScore <- PSSScore + temp
+    }
+    allPSS[i] <- PSSScore
+  }
+  return(allPSS)
 }
 
-#normality test(PMSData$PMSScore)
-if (shapiro.test(PMSData$PMSScore)$p.value < .05){
-  print('Assumption of normality of PMSScore is violated')
-}else{
-  print(paste("PMSScore is normally distributed with p being", round((shapiro.test(PMSData$PMSScore)$p.value),digits=2)))
+### BSRI ####
+getBSRI <- function(data) {
+  tempData <- data[ , grepl("BSRI.B", names(data))] # Make dataset with only RRS variables
+  allBSRI = 0
+  
+  for(i in 1:nrow(data)) { # loop through participants
+    BSRIScore <- 0
+    for(t in 1:ncol(tempData)){ # loop through questions
+      temp = as.numeric(substrRight(unlist(tempData[t])[i],1)) # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double)
+      BSRIScore <- BSRIScore + temp
+    }
+    allBSRI[i] <- BSRIScore
+  }
+  return(allBSRI)
 }
 
-#normality test(allSymptoms)
-if (shapiro.test(allSymptoms)$p.value < .05){
-  print('Assumption of normality of allSymptoms is violated')
-}else{
-  print(paste("allSymptoms is normally distributed with p being", round((shapiro.test(allSymptoms)$p.value),digits=2)))
+dataMoment1$PSS = getPSS(dataMoment1)
+dataMoment1$BSRI = getBSRI(dataMoment1)
+
+dataMoment2$PSS = getPSS(dataMoment2)
+dataMoment2$BSRI = getBSRI(dataMoment2)
+
+# Get scores and add to right participants
+PSS <- data.frame(PSS1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), PSS2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
+BSRI <- data.frame(BSRI1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), BSRI2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
+
+for (i in 1:nrow(DataFrameClean)){ # Loop over all participant rows that filled out screening completely
+  # DataMoment1
+  loc = which(dataMoment1$ParticipantNo == DataFrameClean$participantNo[i]) # Check at what location every specific participantNumber is present
+  if (length(loc) == 0) {
+    # print(paste0("Something going on with participant ",toString(DataFrameClean$participantNo[i])))
+  } else if (length(loc) == 1) {
+    PSS$PSS2[i] <- dataMoment1$PSS[loc]
+    BSRI$BSRI2[i] <- dataMoment1$BSRI[loc]
+    # print(dataMoment1$BSRI[loc])
+  } else {
+    # If there are multiple entries for one participant, we take the last entry #check this later #@Mitchel get back here some time
+    PSS$PSS1[i] <- dataMoment1$PSS[loc[length(loc)]]
+    BSRI$BSRI1[i] <- dataMoment1$BSRI[loc[length(loc)]]
+  }
+  # DataMoment2
+  loc = which(dataMoment2$ParticipantNo == DataFrameClean$participantNo[i]) # Check at what location every specific participantNumber is present
+  if (length(loc) == 0) {
+    # print(paste0("Something going on with participant ",toString(DataFrameClean$participantNo[i])))
+  } else if (length(loc) == 1) {
+    PSS$PSS2[i] <- dataMoment2$PSS[loc]
+    BSRI$BSRI2[i] <- dataMoment2$BSRI[loc]
+    # print(dataMoment1$BSRI[loc])
+  } else {
+    # If there are multiple entries for one participant, we take the last entry #check this later #@Mitchel get back here some time
+    PSS$PSS2[i] <- dataMoment1$PSS[loc[length(loc)]]
+    BSRI$BSRI2[i] <- dataMoment1$BSRI[loc[length(loc)]]
+  }
 }
 
-#normality test(allDisturbance)
-if (shapiro.test(allDisturbance)$p.value < .05){
-  print('Assumption of normality of allDisturbance is violated')
-}else{
-  print(paste("allDisturbance is normally distributed with p being", round((shapiro.test(allDisturbance)$p.value),digits=2)))
+DataFrameClean$folliculairPSS = ''
+DataFrameClean$folliculairBSRI = ''
+DataFrameClean$luteaalPSS = ''
+DataFrameClean$luteaalBSRI = ''
+rownames(DataFrameClean) <- NULL # Wat easier for debugging
+
+DataFrameClean$Order[DataFrameClean$Order == ""] = 'xx'
+
+# Add the data to the dataFrame for right spot
+for (i in 1:nrow(DataFrameClean)){ 
+ if (DataFrameClean$Order[i] == "A-B"){
+   DataFrameClean$folliculairPSS[i] = PSS$PSS1[i]
+   DataFrameClean$folliculairBSRI[i] = BSRI$BSRI1[i]
+   
+   DataFrameClean$luteaalPSS[i] = PSS$PSS2[i]
+   DataFrameClean$luteaalBSRI[i] = BSRI$BSRI2[i]
+ } else if (DataFrameClean$Order[i] == "B-A"){
+   DataFrameClean$folliculairPSS[i] = PSS$PSS2[i]
+   DataFrameClean$folliculairBSRI[i] = BSRI$BSRI2[i]
+   
+   DataFrameClean$luteaalPSS[i] = PSS$PSS1[i]
+   DataFrameClean$luteaalBSRI[i] = BSRI$BSRI1[i]
+ } else if (DataFrameClean$Order[i] == 'xx') { # For some reason doesn't have an order assigned yet
+   DataFrameClean$folliculairPSS[i] = NA
+   DataFrameClean$folliculairBSRI[i] = NA
+   
+   DataFrameClean$luteaalPSS[i] = NA
+   DataFrameClean$luteaalBSRI[i] = NA
+ } else { # Checks for non-sensical order assignments
+   print("Order error")
+   break
+ }
 }
 
-#normality test(allRRS)
-if (shapiro.test(allRRS)$p.value < .05){
-  print('Assumption of normality of allRRS is violated')
-}else{
-  print(paste("allRRS is normally distributed with p being", round((shapiro.test(allRRS)$p.value),digits=2)))
-}
+dataDir = "Z:/ghepmk_data/2020_Kappen_PMS//"
+dateDir = "02032021//"
 
-#normality test(allDASS)
-if (shapiro.test(allDASS)$p.value < .05){
-  print('Assumption of normality of allDASS is violated')
-}else{
-  print(paste("allDASS is normally distributed with p being", round((shapiro.test(allDASS)$p.value),digits=2)))
-}
-
-
+write.csv(DataFrameClean, paste0(dataDir,dateDir,"cleanData.csv"), row.names = FALSE)
+          
