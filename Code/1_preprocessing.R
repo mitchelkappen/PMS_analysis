@@ -13,7 +13,7 @@ library(dplyr)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))# Set working directory to current directory
 
 dataDir = "Z:/ghepmk_data/2020_Kappen_PMS//"
-dateDir = "02032021//"
+dateDir = "14042021//"
 
 # DataFrame <- as.data.frame(read.csv(file = paste0(dataDir,'Screening/results-survey987313-25022021.csv')))# Read data CSV # update to current date version
 # DataFrame <- as.data.frame(read.csv(file = "Z:/ghepmk_data/2020_Kappen_PMS/Screening/results-survey987313-25022021"))
@@ -383,7 +383,7 @@ BAData[3,6] <- sum(DataFrameClean$Order == "B-A")
 # Make function to generate BSRI score
 
 dataMoment1 <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey10001.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
-dataMoment2 <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey10001.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
+dataMoment2 <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey10002.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
 # Clean up data for faulty entries
 dataMoment1 <- dataMoment1[!(dataMoment1$lastpage < 3 | is.na(dataMoment1$lastpage)), ]
@@ -416,7 +416,7 @@ getBSRI <- function(data) {
   for(i in 1:nrow(data)) { # loop through participants
     BSRIScore <- 0
     for(t in 1:ncol(tempData)){ # loop through questions
-      temp = as.numeric(substrRight(unlist(tempData[t])[i],1)) # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double)
+      temp = as.numeric(unlist(tempData[t])[i]) # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double)
       BSRIScore <- BSRIScore + temp
     }
     allBSRI[i] <- BSRIScore
@@ -433,15 +433,18 @@ dataMoment2$BSRI = getBSRI(dataMoment2)
 # Get scores and add to right participants
 PSS <- data.frame(PSS1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), PSS2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
 BSRI <- data.frame(BSRI1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), BSRI2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
+temp = 0
 
 for (i in 1:nrow(DataFrameClean)){ # Loop over all participant rows that filled out screening completely
   # DataMoment1
   loc = which(dataMoment1$ParticipantNo == DataFrameClean$participantNo[i]) # Check at what location every specific participantNumber is present
+  # print(loc)
   if (length(loc) == 0) {
+    temp = temp + 1
     # print(paste0("Something going on with participant ",toString(DataFrameClean$participantNo[i])))
   } else if (length(loc) == 1) {
-    PSS$PSS2[i] <- dataMoment1$PSS[loc]
-    BSRI$BSRI2[i] <- dataMoment1$BSRI[loc]
+    PSS$PSS1[i] <- dataMoment1$PSS[loc]
+    BSRI$BSRI1[i] <- dataMoment1$BSRI[loc]
     # print(dataMoment1$BSRI[loc])
   } else {
     # If there are multiple entries for one participant, we take the last entry #check this later #@Mitchel get back here some time
@@ -497,8 +500,8 @@ for (i in 1:nrow(DataFrameClean)){
  }
 }
 
-dataDir = "Z:/ghepmk_data/2020_Kappen_PMS//"
-dateDir = "02032021//"
+# dataDir = "Z:/ghepmk_data/2020_Kappen_PMS//"
+# dateDir = "02032021//"
 
 write.csv(DataFrameClean, paste0(dataDir,dateDir,"cleanData.csv"), row.names = FALSE)
           
