@@ -22,7 +22,6 @@ DataFrame <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-surv
 
 DataFrame <- select(DataFrame, -c(lastpage, startlanguage, startdate, datestamp, IFC1, IFC2, IFC3, IFC4, IFC5, IFC6, auto1.SQ001., AgeValidation.SQ001., AgeValidation.SQ002., interviewtime, groupTime17, IFC1Time, IFC2Time, IFC3Time, IFC4Time, IFC5Time, IFC6Time, auto1Time, groupTime13, GenderTime, AgeTime, MenstruationTime, FirstMenstrualTime, RegularMentrualTime, MenopauseTime, PregnantTime, PostPregnantTime, ContraceptiveTime, DutchTime, HormonesTime, MentalTime, LaptopTime, MenstrualToelichtTime, CurrentMensesTime, MenstrualStartTime, MenstrualEndTime, MenstrualEndExpectedTime, MenstrualDurationTime, AgeValidationTime, EMailTime, groupTime16, SymptomsTime, DisturbanceTime, SymptomsPRETime, groupTime14, RRSTime, groupTime15, DASS21Time )) #Remove columns with irrelevant data
 
-
 ### Clean data --> remove all rows without submitdate, since that means they didnt complete the screening
 DataFrame <- DataFrame[!(is.na(DataFrame$submitdate) | DataFrame$submitdate==""), ]
 
@@ -32,7 +31,7 @@ substrRight <- function(x, n){ # A function that takes the last n characters of 
 ### DataFrameClean --> initialise dataframe for all relevant data
 
 DataFrameClean <- data.frame()
-DataFrameClean <- select(DataFrame, c(ï..id, Age))
+DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart, MenstrualEnd, MenstrualEndExpected, MenstrualDuration))
 
 ### Get total score per questionnaire
 #Symptoms.PST 1-14
@@ -245,13 +244,13 @@ DataFrameClean <- cbind(DataFrameClean, Contraception)
 
 # barplot(table(ContraData$Overview), col = 'red', main = 'Contraception Type', ylab = 'frequency') #as aanpassen
 
-ggplot(data=ContraData, aes(x=Overview)) +
+plot <- ggplot(data=ContraData, aes(x=Overview)) +
   geom_bar(stat="count", color = "black", fill = "orangered3") +
   xlab("Contraception Type")
 
 ## PMS
 
-ggplot(data=PMSData, aes(x=PMSScore)) +
+plot <- ggplot(data=PMSData, aes(x=PMSScore)) +
   geom_bar(stat="count", color = "black", fill = "green4") +
   xlab("PMSScore") 
 
@@ -476,7 +475,7 @@ DataFrameClean$Order[DataFrameClean$Order == ""] = 'xx'
 
 # Add the data to the dataFrame for right spot
 for (i in 1:nrow(DataFrameClean)){ 
- if (DataFrameClean$Order[i] == "A-B"){
+ if (DataFrameClean$Order[i] == "A-B"){d
    DataFrameClean$folliculairPSS[i] = PSS$PSS1[i]
    DataFrameClean$folliculairBSRI[i] = BSRI$BSRI1[i]
    
