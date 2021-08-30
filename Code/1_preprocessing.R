@@ -12,7 +12,7 @@ library(dplyr)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))# Set working directory to current directory
 
-dataDir = "Z:/ghepmk_data/2020_Kappen_PMS//"
+dataDir = "Z:/shares/ghepmk_data/2020_Kappen_PMS//"
 dateDir = "14042021//"
 
 # DataFrame <- as.data.frame(read.csv(file = paste0(dataDir,'Screening/results-survey987313-25022021.csv')))# Read data CSV # update to current date version
@@ -475,7 +475,7 @@ DataFrameClean$Order[DataFrameClean$Order == ""] = 'xx'
 
 # Add the data to the dataFrame for right spot
 for (i in 1:nrow(DataFrameClean)){ 
- if (DataFrameClean$Order[i] == "A-B"){d
+ if (DataFrameClean$Order[i] == "A-B"){
    DataFrameClean$folliculairPSS[i] = PSS$PSS1[i]
    DataFrameClean$folliculairBSRI[i] = BSRI$BSRI1[i]
    
