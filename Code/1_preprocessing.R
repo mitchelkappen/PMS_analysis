@@ -13,10 +13,7 @@ library(dplyr)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))# Set working directory to current directory
 
 dataDir = "Z:/shares/ghepmk_data/2020_Kappen_PMS//"
-dateDir = "14042021//"
-
-# DataFrame <- as.data.frame(read.csv(file = paste0(dataDir,'Screening/results-survey987313-25022021.csv')))# Read data CSV # update to current date version
-# DataFrame <- as.data.frame(read.csv(file = "Z:/ghepmk_data/2020_Kappen_PMS/Screening/results-survey987313-25022021"))
+dateDir = "24082021//"
 
 DataFrame <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey987313.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
@@ -28,7 +25,7 @@ DataFrame <- DataFrame[!(is.na(DataFrame$submitdate) | DataFrame$submitdate=="")
 substrRight <- function(x, n){ # A function that takes the last n characters of a string
   substr(x, nchar(x)-n+1, nchar(x))}
 
-### DataFrameClean --> initialise dataframe for all relevant data
+DataFrame <- DataFrame[-c(which(DataFrame$ï..id == 2684)), ] # remove this one participant - not included because slipped through
 
 DataFrameClean <- data.frame()
 DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart, MenstrualEnd, MenstrualEndExpected, MenstrualDuration))
@@ -42,12 +39,18 @@ DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart
 ExcelPMS <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"Participant-Excel.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
 library(dplyr)
-Randomisatie <- select(ExcelPMS, Entry.nummer, ï..Participantnummer, Randomisatie)
+Randomisatie <- select(ExcelPMS, Entry.nummer, email, ï..Participantnummer, Randomisatie)
+
+# Trim the email addresses because some have whitespace at the end
+DataFrame$EMail <- trimws(DataFrame$EMail)
+Randomisatie$email <- trimws(Randomisatie$email)
 
 DataFrame$testVolgorde = ''
 DataFrame$participantID = ''
 for (i in 1:nrow(DataFrame)){ # Loop over all participant rows that filled out screening completely
-  loc = which(Randomisatie$Entry.nummer == DataFrame$ï..id[i]) # Check for location of their entry number in the participant Excel file
+  # loc = which(Randomisatie$Entry.nummer == DataFrame$ï..id[i]) # Check for location of their entry number in the participant Excel file
+  loc = which(Randomisatie$email == DataFrame$EMail[i]) # Check for location of their entry number in the participant Excel file
+  
   if (length(loc) == 0) {
     print(paste0("Something going on with participant ",toString(DataFrame$ï..id[i])," AKA entrynumber " ))
   } else {
@@ -247,13 +250,13 @@ DataFrameClean <- cbind(DataFrameClean, Contraception)
 plot <- ggplot(data=ContraData, aes(x=Overview)) +
   geom_bar(stat="count", color = "black", fill = "orangered3") +
   xlab("Contraception Type")
-
+plot
 ## PMS
 
 plot <- ggplot(data=PMSData, aes(x=PMSScore)) +
   geom_bar(stat="count", color = "black", fill = "green4") +
   xlab("PMSScore") 
-
+plot
 ## QUESTIONNAIRES
 
 #Symptoms.PST + Disturbance.PST + RRS.R + DASS21.DAS
@@ -297,8 +300,10 @@ DASSPlot <- pirateplot(formula = DASSData$DASS.Total ~ plotVariable,
 #SubsetAB1 <- DataFrame[which(DataFrame$`PMSData$PMSScore` == 1 & DataFrame$testVolgorde == "A-B"), ]
 #SubsetBA2 <- DataFrame[which(DataFrame$`PMSData$PMSScore` == 2 & DataFrame$testVolgorde == "B-A"), ]
 
-DataFrameClean$Contraception[DataFrameClean$ï..id == 537] = 'other'
-DataFrameClean$Contraception[DataFrameClean$ï..id == 466] = 'other'
+# Some people responded something else than 'other' when using Nuvaring, so should be set to other (however it seems like they are already set to 'other' so probably changed in Excel file)
+
+DataFrameClean$Contraception[DataFrame$EMail == 'axxxboels@gmail.com'] = 'other' # axxxboels@gmail.com
+DataFrameClean$Contraception[DataFrame$EMail == 'lorerobeyns@hotmail.com'] = 'other' # lorerobeyns@hotmail.com
 
 
 ABData <- data.frame(matrix(ncol = 6, nrow = 3))
@@ -503,4 +508,5 @@ for (i in 1:nrow(DataFrameClean)){
 # dateDir = "02032021//"
 
 write.csv(DataFrameClean, paste0(dataDir,dateDir,"cleanData.csv"), row.names = FALSE)
-          
+
+backup <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"cleanData_backup.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE)) # Testing if bugs in code got fixed
