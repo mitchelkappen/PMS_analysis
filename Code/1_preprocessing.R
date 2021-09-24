@@ -39,7 +39,14 @@ DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart
 ExcelPMS <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"Participant-Excel.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
 library(dplyr)
-Randomisatie <- select(ExcelPMS, Entry.nummer, email, ï..Participantnummer, Randomisatie)
+# Add a column with the actual testing moments so we can verify whether they did it on time
+ExcelPMS$TrueFollicular[ExcelPMS$Test.gemist == "WAAR"] = ExcelPMS$Nieuwe.folliculaire.fase[ExcelPMS$Test.gemist == "WAAR"] 
+ExcelPMS$TrueFollicular[ExcelPMS$Test.gemist == ""] = ExcelPMS$folliculaire.fase[ExcelPMS$Test.gemist == ""]
+
+ExcelPMS$TrueLuteal[ExcelPMS$Test.gemist == "WAAR"] = ExcelPMS$Nieuwe.luteale.fase[ExcelPMS$Test.gemist == "WAAR"]
+ExcelPMS$TrueLuteal[ExcelPMS$Test.gemist == ""] = ExcelPMS$luteale.fase[ExcelPMS$Test.gemist == ""] 
+
+Randomisatie <- select(ExcelPMS, Entry.nummer, email, ï..Participantnummer, Randomisatie, Exclusie, TrueFollicular, TrueLuteal, duur.cyclus)
 
 # Trim the email addresses because some have whitespace at the end
 DataFrame$EMail <- trimws(DataFrame$EMail)
@@ -56,13 +63,23 @@ for (i in 1:nrow(DataFrame)){ # Loop over all participant rows that filled out s
   } else {
     DataFrame$testVolgorde[i] = Randomisatie$Randomisatie[loc] # Use this location to grab their randomisation and participantNumber allocated
     DataFrame$participantID[i] = Randomisatie$ï..Participantnummer[loc]
+    DataFrame$Exclusie[i] = Randomisatie$Exclusie[loc]
+    DataFrame$TrueFollicular[i] = Randomisatie$TrueFollicular[loc]
+    DataFrame$TrueLuteal[i] = Randomisatie$TrueLuteal[loc]
+    
+    if (DataFrameClean$MenstrualDuration[i] != Randomisatie$duur.cyclus[loc]){ # If the durations of cycle don't match, this often means the participant didnt understand the question properly. So overwrite this with manual data entered after correspondance with participant
+      DataFrameClean$MenstrualDuration[i] = Randomisatie$duur.cyclus[loc]
+    }
   }
 }
 
 # Add to Clean Dataframe
 Order <- DataFrame$testVolgorde
 participantNo <- DataFrame$participantID
-DataFrameClean <- cbind(DataFrameClean, participantNo, Order)
+Exclusie <- DataFrame$Exclusie
+TrueFollicular <- DataFrame$TrueFollicular
+TrueLuteal <- DataFrame$TrueLuteal
+DataFrameClean <- cbind(DataFrameClean, participantNo, Order, Exclusie, TrueFollicular, TrueLuteal)
 
 ########################## Symptoms ###########################
 SymptomsData <- DataFrame[ , grepl( "Symptoms.PST" , names( DataFrame ) ) ] # Make dataset with only Symtoms variables
@@ -510,3 +527,4 @@ for (i in 1:nrow(DataFrameClean)){
 write.csv(DataFrameClean, paste0(dataDir,dateDir,"cleanData.csv"), row.names = FALSE)
 
 backup <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"cleanData_backup.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE)) # Testing if bugs in code got fixed
+
