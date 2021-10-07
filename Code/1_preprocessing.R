@@ -13,7 +13,8 @@ library(dplyr)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))# Set working directory to current directory
 
 dataDir = "Z:/shares/ghepmk_data/2020_Kappen_PMS//"
-dateDir = "24082021//"
+# dateDir = "24082021//"
+dateDir = "06102021//"
 
 DataFrame <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey987313.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
@@ -36,14 +37,18 @@ DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart
 #RRS.R 1-22
 #DASS21.DAS 1-21
 ################ Linking Excel file to assess A-B/B-A distribution #################
+# ExcelPMS <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"Participant-Excel.csv"), head = TRUE, sep=";",  stringsAsFactors=FALSE))
 ExcelPMS <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"Participant-Excel.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
+
+library(tidyr)
+ExcelPMS <- ExcelPMS %>% mutate_all(~ replace_na(.x, "")) # Replace all NA's with empty lines. This makes the code make better sense
 
 library(dplyr)
 # Add a column with the actual testing moments so we can verify whether they did it on time
-ExcelPMS$TrueFollicular[ExcelPMS$Test.gemist == "WAAR"] = ExcelPMS$Nieuwe.folliculaire.fase[ExcelPMS$Test.gemist == "WAAR"] 
+ExcelPMS$TrueFollicular[ExcelPMS$Test.gemist == "TRUE"] = ExcelPMS$Nieuwe.folliculaire.fase[ExcelPMS$Test.gemist == "TRUE"] 
 ExcelPMS$TrueFollicular[ExcelPMS$Test.gemist == ""] = ExcelPMS$folliculaire.fase[ExcelPMS$Test.gemist == ""]
 
-ExcelPMS$TrueLuteal[ExcelPMS$Test.gemist == "WAAR"] = ExcelPMS$Nieuwe.luteale.fase[ExcelPMS$Test.gemist == "WAAR"]
+ExcelPMS$TrueLuteal[ExcelPMS$Test.gemist == "TRUE"] = ExcelPMS$Nieuwe.luteale.fase[ExcelPMS$Test.gemist == "TRUE"]
 ExcelPMS$TrueLuteal[ExcelPMS$Test.gemist == ""] = ExcelPMS$luteale.fase[ExcelPMS$Test.gemist == ""] 
 
 Randomisatie <- select(ExcelPMS, Entry.nummer, email, ï..Participantnummer, Randomisatie, Exclusie, TrueFollicular, TrueLuteal, duur.cyclus)
@@ -526,5 +531,5 @@ for (i in 1:nrow(DataFrameClean)){
 
 write.csv(DataFrameClean, paste0(dataDir,dateDir,"cleanData.csv"), row.names = FALSE)
 
-backup <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"cleanData_backup.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE)) # Testing if bugs in code got fixed
+# backup <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"cleanData_backup.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE)) # Testing if bugs in code got fixed
 
