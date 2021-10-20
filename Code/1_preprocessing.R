@@ -20,6 +20,7 @@ DataFrame <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-surv
 
 DataFrame <- select(DataFrame, -c(lastpage, startlanguage, startdate, datestamp, IFC1, IFC2, IFC3, IFC4, IFC5, IFC6, auto1.SQ001., AgeValidation.SQ001., AgeValidation.SQ002., interviewtime, groupTime17, IFC1Time, IFC2Time, IFC3Time, IFC4Time, IFC5Time, IFC6Time, auto1Time, groupTime13, GenderTime, AgeTime, MenstruationTime, FirstMenstrualTime, RegularMentrualTime, MenopauseTime, PregnantTime, PostPregnantTime, ContraceptiveTime, DutchTime, HormonesTime, MentalTime, LaptopTime, MenstrualToelichtTime, CurrentMensesTime, MenstrualStartTime, MenstrualEndTime, MenstrualEndExpectedTime, MenstrualDurationTime, AgeValidationTime, EMailTime, groupTime16, SymptomsTime, DisturbanceTime, SymptomsPRETime, groupTime14, RRSTime, groupTime15, DASS21Time )) #Remove columns with irrelevant data
 
+isala = DataFrame$Isala[DataFrame$Isala != ""]
 ### Clean data --> remove all rows without submitdate, since that means they didnt complete the screening
 DataFrame <- DataFrame[!(is.na(DataFrame$submitdate) | DataFrame$submitdate==""), ]
 
@@ -29,7 +30,7 @@ substrRight <- function(x, n){ # A function that takes the last n characters of 
 DataFrame <- DataFrame[-c(which(DataFrame$ï..id == 2684)), ] # remove this one participant - not included because slipped through
 
 DataFrameClean <- data.frame()
-DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart, MenstrualEnd, MenstrualEndExpected, MenstrualDuration))
+DataFrameClean <- select(DataFrame, c(ï..id, Age, FirstMenstrual, MenstrualStart, MenstrualEnd, MenstrualEndExpected, MenstrualDuration, Isala))
 
 ### Get total score per questionnaire
 #Symptoms.PST 1-14
@@ -535,4 +536,16 @@ for (i in 1:nrow(DataFrameClean)){
 write.csv(DataFrameClean, paste0(dataDir,dateDir,"cleanData.csv"), row.names = FALSE)
 
 # backup <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"cleanData_backup.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE)) # Testing if bugs in code got fixed
+
+IsalaSet = DataFrameClean[DataFrameClean$Isala != "",]
+for (i in 1:length(isala)){
+  loc = which(IsalaSet == isala[i])
+  
+  if (length(loc) == 0) {
+    print(paste0(toString(isala[i])))
+  } 
+
+}
+
+write.csv(IsalaSet, paste0(dataDir,dateDir,"IsalaDataScreen.csv"), row.names = FALSE)
 
