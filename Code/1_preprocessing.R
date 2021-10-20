@@ -426,7 +426,10 @@ getPSS <- function(data) {
   for(i in 1:nrow(data)) { # loop through participants
     PSSScore <- 0
     for(t in 1:ncol(tempData)){ # loop through questions
-      temp = as.numeric(substrRight(unlist(tempData[t])[i],1)) # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double)
+      temp = as.numeric(substrRight(unlist(tempData[t])[i],1)) - 1 # Take value i (participant) from RRSDATA, unlist, then take last character and turn it into a number (double) # And substract one because we use different scales
+      if (t==4 | t==5 | t==7 | t==8){
+        temp = 4 - temp # reserse score these
+      }
       PSSScore <- PSSScore + temp
     }
     allPSS[i] <- PSSScore
