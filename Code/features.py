@@ -4,6 +4,12 @@ import numpy as np
 import os
 import math
 
+def compute_quality(video_data: pd.DataFrame) -> dict:
+    """Computes the average 'confidence' of the data in this block"""
+    processed = {} # Create the dict to store the results
+    processed['mean_confidence'] = np.mean(video_data[' confidence'])
+    return processed
+    
 def compute_arousal(video_data: pd.DataFrame) -> dict:
     """Computes the arousal based on the mean intensity (_r) of all FAUs (except 45) and returns this in a dict. Based on the Noldus whitepaper."""
     processed = {} # Create the dict to store the results
