@@ -17,6 +17,7 @@ dataDir = "Z:/shares/ghepmk_data/2020_Kappen_PMS//"
 dateDir = "06102021//"
 
 DataFrame <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"results-survey987313.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
+# DataFrameCOMPLETE <- as.data.frame(read.csv(file = paste0(dataDir, dateDir,"allPMSdata.csv"), head = TRUE, sep=",",  stringsAsFactors=FALSE))
 
 DataFrame <- select(DataFrame, -c(lastpage, startlanguage, startdate, datestamp, IFC1, IFC2, IFC3, IFC4, IFC5, IFC6, auto1.SQ001., AgeValidation.SQ001., AgeValidation.SQ002., interviewtime, groupTime17, IFC1Time, IFC2Time, IFC3Time, IFC4Time, IFC5Time, IFC6Time, auto1Time, groupTime13, GenderTime, AgeTime, MenstruationTime, FirstMenstrualTime, RegularMentrualTime, MenopauseTime, PregnantTime, PostPregnantTime, ContraceptiveTime, DutchTime, HormonesTime, MentalTime, LaptopTime, MenstrualToelichtTime, CurrentMensesTime, MenstrualStartTime, MenstrualEndTime, MenstrualEndExpectedTime, MenstrualDurationTime, AgeValidationTime, EMailTime, groupTime16, SymptomsTime, DisturbanceTime, SymptomsPRETime, groupTime14, RRSTime, groupTime15, DASS21Time )) #Remove columns with irrelevant data
 
@@ -549,3 +550,6 @@ for (i in 1:length(isala)){
 
 write.csv(IsalaSet, paste0(dataDir,dateDir,"IsalaDataScreen.csv"), row.names = FALSE)
 
+msData <- DataFrameClean[is.na(DataFrameClean$folliculairPSS) == FALSE & is.na(DataFrameClean$luteaalPSS) == FALSE, ]
+msData <- msData[msData$participantNo != 407, ] # This is a double entry. 
+write.csv(msData, paste0(dataDir,dateDir,"cleanedData.csv"), row.names = FALSE)
