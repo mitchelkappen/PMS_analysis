@@ -552,4 +552,20 @@ write.csv(IsalaSet, paste0(dataDir,dateDir,"IsalaDataScreen.csv"), row.names = F
 
 msData <- DataFrameClean[is.na(DataFrameClean$folliculairPSS) == FALSE & is.na(DataFrameClean$luteaalPSS) == FALSE, ]
 msData <- msData[msData$participantNo != 407, ] # This is a double entry. 
+
+groupingVars <- colnames(msData)[1:24]
+# Order, Moment (A-B), PSS, BSRI
+msData <- reshape(msData, direction='long', 
+        # varying=c('folliculairPSS', 'folliculairBSRI', 'luteaalPSS', 'luteaalBSRI'), 
+        # varying=c('luteaalPSS', 'luteaalBSRI', 'folliculairPSS', 'folliculairBSRI'), 
+        varying=list(c('folliculairPSS', 'luteaalPSS'),
+                     c('folliculairBSRI', 'luteaalBSRI')),
+        timevar='Moment',
+        times=c('Foll', 'Lut'),
+        v.names=c('PSS', 'BSRI'),
+        # v.names=c('BSRI', 'PSS'),
+        idvar='participantNo')
+colnames(msData)[1] <- 'ID'
+colnames(msData)[18:20] <- c('DASS_Anxiety', 'DASS_Depression', 'DASS_Stress')
+
 write.csv(msData, paste0(dataDir,dateDir,"cleanedData.csv"), row.names = FALSE)
