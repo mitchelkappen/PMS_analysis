@@ -566,6 +566,18 @@ msData <- reshape(msData, direction='long',
         # v.names=c('BSRI', 'PSS'),
         idvar='participantNo')
 colnames(msData)[1] <- 'ID'
-colnames(msData)[18:20] <- c('DASS_Anxiety', 'DASS_Depression', 'DASS_Stress')
+colnames(msData)[which(colnames(msData) == "DASS.Stress")] = "DASS_Stress"
+colnames(msData)[which(colnames(msData) == "DASS.Anxiety")] = "DASS_Anxiety"
+colnames(msData)[which(colnames(msData) == "DASS.Depresh")] = "DASS_Depression"
 
-write.csv(msData, paste0(dataDir,dateDir,"cleanedData.csv"), row.names = FALSE)
+write.csv(msData, paste0(dataDir,dateDir,"cleanedDataMoments.csv"), row.names = FALSE)
+
+## Wide data for the trait questionnaires
+msData <- DataFrameClean
+msData <- msData[msData$participantNo != 407, ] # This is a double entry. 
+colnames(msData)[1] <- 'ID'
+colnames(msData)[which(colnames(msData) == "DASS.Stress")] = "DASS_Stress"
+colnames(msData)[which(colnames(msData) == "DASS.Anxiety")] = "DASS_Anxiety"
+colnames(msData)[which(colnames(msData) == "DASS.Depresh")] = "DASS_Depression"
+
+write.csv(msData, paste0(dataDir,dateDir,"cleanedDataTraits.csv"), row.names = FALSE)
