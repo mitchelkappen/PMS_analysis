@@ -455,15 +455,34 @@ getBSRI <- function(data) {
   return(allBSRI)
 }
 
+### PTQ ####
+getPTQ <- function(data) {
+  tempData <- data[ , grepl("PTQ.P", names(data))] # Make dataset with only RRS variables
+  allPTQ = 0
+  
+  for(i in 1:nrow(data)) { # loop through participants
+    PTQScore <- 0
+    for(t in 1:ncol(tempData)){ # loop through questions
+      temp = as.numeric(substrRight(unlist(tempData[t])[i],1)) - 1
+      PTQScore <- PTQScore + temp
+    }
+    allPTQ[i] <- PTQScore
+  }
+  return(allPTQ)
+}
+
 dataMoment1$PSS = getPSS(dataMoment1)
 dataMoment1$BSRI = getBSRI(dataMoment1)
+dataMoment1$PTQ = getPTQ(dataMoment1)
 
 dataMoment2$PSS = getPSS(dataMoment2)
 dataMoment2$BSRI = getBSRI(dataMoment2)
+dataMoment2$PTQ = getPTQ(dataMoment2)
 
 # Get scores and add to right participants
 PSS <- data.frame(PSS1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), PSS2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
 BSRI <- data.frame(BSRI1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), BSRI2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
+PTQ <- data.frame(PTQ1 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1), PTQ2 = matrix(NA, nrow = nrow(DataFrameClean), ncol = 1))
 temp = 0
 
 for (i in 1:nrow(DataFrameClean)){ # Loop over all participant rows that filled out screening completely
@@ -476,11 +495,13 @@ for (i in 1:nrow(DataFrameClean)){ # Loop over all participant rows that filled 
   } else if (length(loc) == 1) {
     PSS$PSS1[i] <- dataMoment1$PSS[loc]
     BSRI$BSRI1[i] <- dataMoment1$BSRI[loc]
+    PTQ$PTQ1[i] <- dataMoment1$PTQ[loc]
     # print(dataMoment1$BSRI[loc])
   } else {
     # If there are multiple entries for one participant, we take the last entry #check this later #@Mitchel get back here some time
     PSS$PSS1[i] <- dataMoment1$PSS[loc[length(loc)]]
     BSRI$BSRI1[i] <- dataMoment1$BSRI[loc[length(loc)]]
+    PTQ$PTQ1[i] <- dataMoment1$PTQ[loc[length(loc)]]
   }
   # DataMoment2
   loc = which(dataMoment2$ParticipantNo == DataFrameClean$participantNo[i]) # Check at what location every specific participantNumber is present
@@ -489,18 +510,22 @@ for (i in 1:nrow(DataFrameClean)){ # Loop over all participant rows that filled 
   } else if (length(loc) == 1) {
     PSS$PSS2[i] <- dataMoment2$PSS[loc]
     BSRI$BSRI2[i] <- dataMoment2$BSRI[loc]
+    PTQ$PTQ2[i] <- dataMoment2$PTQ[loc]
     # print(dataMoment1$BSRI[loc])
   } else {
     # If there are multiple entries for one participant, we take the last entry #check this later #@Mitchel get back here some time
     PSS$PSS2[i] <- dataMoment1$PSS[loc[length(loc)]]
     BSRI$BSRI2[i] <- dataMoment1$BSRI[loc[length(loc)]]
+    PTQ$PTQ2[i] <- dataMoment1$PTQ[loc[length(loc)]]
   }
 }
 
 DataFrameClean$folliculairPSS = ''
 DataFrameClean$folliculairBSRI = ''
+DataFrameClean$folliculairPTQ = ''
 DataFrameClean$luteaalPSS = ''
 DataFrameClean$luteaalBSRI = ''
+DataFrameClean$luteaalPTQ = ''
 rownames(DataFrameClean) <- NULL # Wat easier for debugging
 
 DataFrameClean$Order[DataFrameClean$Order == ""] = 'xx'
@@ -510,21 +535,27 @@ for (i in 1:nrow(DataFrameClean)){
  if (DataFrameClean$Order[i] == "A-B"){
    DataFrameClean$folliculairPSS[i] = PSS$PSS1[i]
    DataFrameClean$folliculairBSRI[i] = BSRI$BSRI1[i]
+   DataFrameClean$folliculairPTQ[i] = PTQ$PTQ1[i]
    
    DataFrameClean$luteaalPSS[i] = PSS$PSS2[i]
    DataFrameClean$luteaalBSRI[i] = BSRI$BSRI2[i]
+   DataFrameClean$luteaalPTQ[i] = PTQ$PTQ2[i]
  } else if (DataFrameClean$Order[i] == "B-A"){
    DataFrameClean$folliculairPSS[i] = PSS$PSS2[i]
    DataFrameClean$folliculairBSRI[i] = BSRI$BSRI2[i]
+   DataFrameClean$folliculairPTQ[i] = PTQ$PTQ2[i]
    
    DataFrameClean$luteaalPSS[i] = PSS$PSS1[i]
    DataFrameClean$luteaalBSRI[i] = BSRI$BSRI1[i]
+   DataFrameClean$luteaalPTQ[i] = PTQ$PTQ1[i]
  } else if (DataFrameClean$Order[i] == 'xx') { # For some reason doesn't have an order assigned yet
    DataFrameClean$folliculairPSS[i] = NA
    DataFrameClean$folliculairBSRI[i] = NA
+   DataFrameClean$folliculairPTQ[i] = NA
    
    DataFrameClean$luteaalPSS[i] = NA
    DataFrameClean$luteaalBSRI[i] = NA
+   DataFrameClean$luteaalPTQ[i] = NA
  } else { # Checks for non-sensical order assignments
    print("Order error")
    break
@@ -554,21 +585,24 @@ msData <- DataFrameClean[is.na(DataFrameClean$folliculairPSS) == FALSE & is.na(D
 msData <- msData[msData$participantNo != 407, ] # This is a double entry. 
 
 groupingVars <- colnames(msData)[1:24]
-# Order, Moment (A-B), PSS, BSRI
+
 msData <- reshape(msData, direction='long', 
-        # varying=c('folliculairPSS', 'folliculairBSRI', 'luteaalPSS', 'luteaalBSRI'), 
-        # varying=c('luteaalPSS', 'luteaalBSRI', 'folliculairPSS', 'folliculairBSRI'), 
-        varying=list(c('folliculairPSS', 'luteaalPSS'),
-                     c('folliculairBSRI', 'luteaalBSRI')),
-        timevar='Moment',
-        times=c('Foll', 'Lut'),
-        v.names=c('PSS', 'BSRI'),
-        # v.names=c('BSRI', 'PSS'),
-        idvar='participantNo')
+                  # varying=c('folliculairPSS', 'folliculairBSRI', 'luteaalPSS', 'luteaalBSRI'), 
+                  # varying=c('luteaalPSS', 'luteaalBSRI', 'folliculairPSS', 'folliculairBSRI'), 
+                  varying=list(c('folliculairPSS', 'luteaalPSS'),
+                               c('folliculairBSRI', 'luteaalBSRI'),
+                               c('folliculairPTQ', 'luteaalPTQ')),
+                  timevar='Moment',
+                  times=c('Foll', 'Lut'),
+                  v.names=c('PSS', 'BSRI', 'PTQ'),
+                  idvar='participantNo')
 colnames(msData)[1] <- 'ID'
 colnames(msData)[which(colnames(msData) == "DASS.Stress")] = "DASS_Stress"
 colnames(msData)[which(colnames(msData) == "DASS.Anxiety")] = "DASS_Anxiety"
 colnames(msData)[which(colnames(msData) == "DASS.Depresh")] = "DASS_Depression"
+
+mutate(msData$TrueFollicular, b2= as.Date(b2, format= "%d.%m.%Y"))
+
 
 write.csv(msData, paste0(dataDir,dateDir,"cleanedDataMoments.csv"), row.names = FALSE)
 
